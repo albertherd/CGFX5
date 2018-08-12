@@ -14,6 +14,9 @@
 #include "math/plane.hpp"
 #include "math/intersects.hpp"
 
+#include "core/iinput.h"
+#include "gameEventHandler.hpp"
+
 // NOTE: Profiling reveals that in the current instanced rendering system:
 // - Updating the buffer takes more time than
 // - Calculating the transforms which takes more time than
@@ -85,10 +88,7 @@ static int runApp(Application* app)
 	Array<Matrix> transformMatrixBaseArray;
 	for(uint32 i = 0; i < numInstances; i++) {
 		transformMatrixArray.push_back(Matrix::identity());
-		transform.setTranslation(Vector3f(
-					(Math::randf() * randScaleX)-randScaleX/2.0f,
-					(Math::randf() * randScaleY)-randScaleY/2.0f,
-					randZ));
+		transform.setTranslation(Vector3f(0.0f, 0.0f, randZ));
 		transformMatrixBaseArray.push_back(transform.toMatrix());
 	}
 	transform.setTranslation(Vector3f(0.0f,0.0f,0.0f));
@@ -101,6 +101,21 @@ static int runApp(Application* app)
 //	drawParams.sourceBlend = RenderDevice::BLEND_FUNC_ONE;
 //	drawParams.destBlend = RenderDevice::BLEND_FUNC_ONE;
 	// End scene creation
+
+	GameEventHandler eventhandler;
+	InputControl horizontal;
+	InputControl vertical;
+	eventhandler.addKeyControl(Input::KEY_A, horizontal, -1.0f);
+	eventhandler.addKeyControl(Input::KEY_D, horizontal, 1.0f);
+	eventhandler.addKeyControl(Input::KEY_LEFT, horizontal, -1.0f);
+	eventhandler.addKeyControl(Input::KEY_RIGHT, horizontal, 1.0f);
+	eventhandler.addKeyControl(Input::KEY_W, vertical, 1.0f);
+	eventhandler.addKeyControl(Input::KEY_S, vertical, -1.0f);
+	eventhandler.addKeyControl(Input::KEY_UP, vertical, 1.0f);
+	eventhandler.addKeyControl(Input::KEY_DOWN, vertical, -1.0f);
+
+	float xPos = 0.0f;
+	float yPos = 0.0f;
 
 	uint32 fps = 0;
 	double lastTime = Time::getTime();
@@ -124,10 +139,15 @@ static int runApp(Application* app)
 		
 		bool shouldRender = false;
 		while(updateTimer >= frameTime) {
-			app->processMessages(frameTime);
+			app->processMessages(frameTime, eventhandler);
+			
+			xPos += 10 * frameTime * horizontal.getAmt();
+			yPos += 10 * frameTime * vertical.getAmt();
+
 			// Begin scene update
 			transform.setRotation(Quaternion(Vector3f(1.0f, 1.0f, 1.0f).normalized(), amt*10.0f/11.0f));
-			for(uint32 i = 0; i < transformMatrixArray.size(); i++) {
+			transform.setTranslation(Vector3f(xPos, yPos, 0));
+			for (uint32 i = 0; i < transformMatrixArray.size(); i++) {
 				transformMatrixArray[i] = (perspective * transformMatrixBaseArray[i] * transform.toMatrix());
 			}
 			vertexArray.updateBuffer(4, &transformMatrixArray[0],
