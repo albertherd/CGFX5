@@ -16,6 +16,12 @@
 
 #include "core/iinput.h"
 #include "gameEventHandler.hpp"
+#include "ecs/ecs.hpp"
+
+struct TransformComponent : public ECSComponent<TransformComponent>
+{
+	Transform transform;
+};
 
 // NOTE: Profiling reveals that in the current instanced rendering system:
 // - Updating the buffer takes more time than
@@ -117,6 +123,15 @@ static int runApp(Application* app)
 	float xPos = 0.0f;
 	float yPos = 0.0f;
 
+
+	ECS ecs;
+	// Create Components
+	TransformComponent transformComponent;
+	transformComponent.transform.setTranslation(Vector3f(0.0f, 0.0f, 20.0f));
+	// Create Entities
+	EntityHandle entity = ecs.makeEntity(transformComponent);
+	// Create Systems
+
 	uint32 fps = 0;
 	double lastTime = Time::getTime();
 	double fpsTimeCounter = 0.0;
@@ -140,15 +155,17 @@ static int runApp(Application* app)
 		bool shouldRender = false;
 		while(updateTimer >= frameTime) {
 			app->processMessages(frameTime, eventhandler);
+
+			Transform& workingTransform = ecs.getComponent<TransformComponent>(entity)->transform;
 			
 			xPos += 10 * frameTime * horizontal.getAmt();
 			yPos += 10 * frameTime * vertical.getAmt();
 
 			// Begin scene update
-			transform.setRotation(Quaternion(Vector3f(1.0f, 1.0f, 1.0f).normalized(), amt*10.0f/11.0f));
-			transform.setTranslation(Vector3f(xPos, yPos, 0));
+			workingTransform.setRotation(Quaternion(Vector3f(1.0f, 1.0f, 1.0f).normalized(), amt*10.0f/11.0f));
+			workingTransform.setTranslation(Vector3f(xPos, yPos, 0));
 			for (uint32 i = 0; i < transformMatrixArray.size(); i++) {
-				transformMatrixArray[i] = (perspective * transformMatrixBaseArray[i] * transform.toMatrix());
+				transformMatrixArray[i] = (perspective * transformMatrixBaseArray[i] * workingTransform.toMatrix());
 			}
 			vertexArray.updateBuffer(4, &transformMatrixArray[0],
 					transformMatrixArray.size() * sizeof(Matrix));
